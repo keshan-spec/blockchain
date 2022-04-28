@@ -2,11 +2,19 @@ import hashlib, time, json
 
 
 class Block:
-    def __init__(self, index, transactions, previous_hash, nonce=0):
+    def __init__(
+        self,
+        index,
+        transactions,
+        prev_hash,
+        nonce=0,
+        timestamp=time.time(),
+        hash=None,
+    ):
         self.index = index
-        self.timestamp = time.time()
-        self.hash = self.calculate_hash()
-        self.prev_hash = previous_hash
+        self.timestamp = timestamp
+        self.hash = hash if hash else self.calculate_hash()
+        self.prev_hash = prev_hash
         self.transactions = transactions
         self.nonce = nonce
 
@@ -25,7 +33,16 @@ class Blockchain:
     def __init__(self):
         self.unconfirmed_transactions = []
         self.chain = []
-        self.create_genesis_block()
+        # load the blockchain from json file
+        try:
+            with open("blockchain.json", "r") as f:
+                for block in json.load(f):
+                    self.chain.append(Block(**block))
+                # self.chain = json.load(f)
+                print(f"Blockchain loaded from file: {self.chain}")
+        except FileNotFoundError:
+            self.create_genesis_block()
+            pass
 
     def create_genesis_block(self):
         genesis_block = Block(0, [], "0")
@@ -76,10 +93,17 @@ class Blockchain:
         new_block = Block(
             index=last_block.index + 1,
             transactions=self.unconfirmed_transactions,
-            previous_hash=last_block.hash,
+            prev_hash=last_block.hash,
         )
 
         proof = self.proof_of_work(new_block)
         self.add_block(new_block, proof)
         self.unconfirmed_transactions = []
+
+        # add blocks to json file
+        with open("blockchain.json", "w") as f:
+            # serialize the blocks to json
+            f.write(json.dumps([block.__dict__ for block in self.chain]))
+            # json.dump(self.__dict__, f, indent=4, sort_keys=True)
+
         return new_block
